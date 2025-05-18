@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎚️ Contrôle Reaper - TouchBeat</title>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: #ffffff;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    button {
+      background-color: #0044ff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      margin: 10px;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .track-card {
+      border: 1px solid #555;
+      background-color: #2e2e2e;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 15px;
+      width: 250px;
+      text-align: left;
+      position: relative;
+    }
+    .track-card h3 {
+      margin-top: 0;
+      color: #00bfff;
+    }
+    .track-card label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .track-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .close-btn {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #ff5555;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .close-btn:hover {
+      color: #ff2222;
+    }
+    .logout-btn {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      background-color: #ff5555;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .logout-btn:hover {
+      background-color: #ff2222;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Bouton de déconnexion -->
+  <form action="/logout" method="get" style="position: absolute; top: 20px; right: 30px;">
+    <button class="logout-btn">Se déconnecter</button>
+  </form>
+
+  <div class="container">
+    <h2>🎚️ Contrôle Reaper</h2>
+    <p id="trackCountText">Nombre de pistes : ...</p>
+    <button onclick="addTrack()">➕ Ajouter une piste</button>
+
+    <div class="track-list" id="trackList"></div>
+  </div>
+
+  <script>
+    const baseURL = `http://${window.location.hostname}:5000`;
+
+    async function apiRequest(endpoint, method = "GET", body = null) {
+      try {
+        const options = {
+          method: method,
+          headers: { "Content-Type": "application/json" }
+        };
+        if (body) options.body = JSON.stringify(body);
+
+        const response = await fetch(`${baseURL}${endpoint}`, options);
+
+        if (response.status === 403) {
+          alert("Session expirée. Veuillez vous reconnecter.");
+          window.location.href = "/login";
+          return;
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("Erreur de communication avec le serveur :", error);
+      }
+    }
+
+    function sendVolume(track, value) {
+      apiRequest("/set_volume", "POST", { track, volume: parseFloat(value) });
+    }
+
+    function sendPan(track, value) {
+      apiRequest("/set_pan", "POST", { track, pan: parseFloat(value) });
+    }
+
+    function sendReverb(track, value) {
+      apiRequest("/set_reverb", "POST", { track, reverb: parseFloat(value) });
+    }
+
+    function toggleRecordArm(track, record) {
+      apiRequest("/toggle_record_arm", "POST", { track, record });
+    }
+
+    function setTrackInput(track, input) {
+      apiRequest("/set_input", "POST", { track, input });
+    }
+
+    function deleteTrack(track) {
+      apiRequest("/delete_track", "POST", { track })
+        .then(data => {
+          if (data) alert(data.message);
+        });
+    }
+
+    function addTrack() {
+      apiRequest("/add_track", "POST")
+        .then(data => {
+          if (data) alert(data.message);
+        });
+    }
+
+    function sendInstrument(track, instrument) {
+      apiRequest("/set_instrument", "POST", { track, instrument });
+    }
+
+    function updateTrackCards() {
+      apiRequest("/track_data")
+        .then(data => {
+          if (!data) return;
+          const container = document.getElementById("trackList");
+          document.getElementById("trackCountText").textContent = `Nombre de pistes : ${data.tracks.length}`;
+
+          const existingTrackIds = new Set(data.tracks.map(t => `track-${t.id}`));
+          Array.from(container.children).forEach(child => {
+            if (!existingTrackIds.has(child.id)) {
+              container.removeChild(child);
+            }
+          });
+
+          data.tracks.forEach(track => {
+            const trackId = `track-${track.id}`;
+            let card = document.getElementById(trackId);
+
+            if (!card) {
+              card = document.createElement("div");
+              card.className = "track-card";
+              card.id = trackId;
+
+              card.innerHTML = `
+                <button class="close-btn" onclick="deleteTrack(${track.id})">&times;</button>
+                <h3>${track.name || 'Piste ' + track.id}</h3>
+
+                <label>Instrument</label>
+                <select id="instrument-${track.id}" onchange="sendInstrument(${track.id}, this.value)">
+                  <option value="">-- Choisir un instrument --</option>
+                  ${data.instruments.map(instr =>
+                    `<option value="${instr}">${instr}</option>`
+                  ).join("")}
+                </select>
+
+                <label><i class="fas fa-sign-in-alt icon"></i> Entrée</label>
+                <select id="input-${track.id}" onchange="setTrackInput(${track.id}, this.value)">
+                  <option value="mono1">Mono: Input 1</option>
+                  <option value="mono2">Mono: Input 2</option>
+                  <option value="stereo1_2">Stereo: Input 1/2</option>
+                  <option value="midi_all">MIDI: Clavier MIDI</option>
+                  <option value="midi_virtual">MIDI: Virtual Keyboard</option>
+                </select>
+
+                <label><i class="fas fa-volume-up icon"></i> Volume</label>
+                <input id="volume-${track.id}" type="range" min="0" max="1" step="0.01" oninput="sendVolume(${track.id}, this.value)">
+
+                <label><i class="fas fa-adjust icon"></i> Panoramique</label>
+                <input id="pan-${track.id}" type="range" min="-1" max="1" step="0.01" oninput="sendPan(${track.id}, this.value)">
+
+                <label><i class="fas fa-water icon"></i> Réverbération</label>
+                <input id="reverb-${track.id}" type="range" min="0" max="1" step="0.01" value="0.5" oninput="sendReverb(${track.id}, this.value)">
+
+                <label><i class="fas fa-circle icon"></i> Enregistrement activé</label>
+                <input type="checkbox" id="record-${track.id}" ${track.record ? 'checked' : ''} onchange="toggleRecordArm(${track.id}, this.checked)">
+              `;
+
+              container.appendChild(card);
+            }
+
+            document.getElementById(`volume-${track.id}`).value = track.volume;
+            document.getElementById(`pan-${track.id}`).value = track.pan;
+            document.getElementById(`record-${track.id}`).checked = track.record;
+
+            const instrumentSelect = document.getElementById(`instrument-${track.id}`);
+            if (instrumentSelect && track.instrument) {
+              for (let opt of instrumentSelect.options) {
+                opt.selected = opt.value === track.instrument;
+              }
+            }
+
+            const inputSelect = document.getElementById(`input-${track.id}`);
+            if (inputSelect && track.input !== undefined) {
+              // Gestion future possible
+            }
+          });
+        });
+    }
+
+    setInterval(updateTrackCards, 2000);
+    updateTrackCards();
+  </script>
+
+</body>
+</html>
