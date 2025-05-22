@@ -4,6 +4,7 @@ local lastSendTime = 0
 local instrumentFile = reaper.GetResourcePath() .. "/instrument_changes.json"
 local inputFile = reaper.GetResourcePath() .. "/input_changes.json"
 local outputFile = reaper.GetResourcePath() .. "/tracks.json"
+local reverbFile = reaper.GetResourcePath() .. "/reverb_changes.json"
 
 local availableInstruments = {
     "DSK Strings (x86) (DSK Music)",
@@ -15,6 +16,40 @@ local availableInstruments = {
     "ReaSynDr (Cockos)",
     "ReaSynth (Cockos)"
 }
+
+function applyReverbToTrack(track, settings)
+    local fxName = "ReaVerb (Cockos)"
+    local fxIndex = reaper.TrackFX_AddByName(track, fxName, false, 1)
+    if fxIndex >= 0 then
+        reaper.TrackFX_SetPreset(track, fxIndex, "sweetverbo")
+        reaper.TrackFX_SetParam(track, fxIndex, 0, settings.wet)
+        reaper.TrackFX_SetParam(track, fxIndex, 1, settings.dry)
+    end
+end
+
+function applyReverbChanges()
+    local f = io.open(reverbFile, "r")
+    if not f then return end
+    local content = f:read("*all")
+    f:close()
+
+    local changes, _, err = json.decode(content)
+    if err or not changes then return end
+
+    for id, settings in pairs(changes) do
+        local tr = reaper.GetTrack(0, tonumber(id)-1)
+        if tr then
+            if settings.active then
+                applyReverbToTrack(tr, settings)
+            else
+                local idx = reaper.TrackFX_AddByName(tr, fxName, false, 0)
+                if idx >= 0 then
+                    reaper.TrackFX_SetEnabled(tr, idx, false)
+                end
+            end
+        end
+    end
+end
 
 function applyInstrumentToTrack(track, instrument)
     if not instrument or instrument == "" then return end
@@ -110,8 +145,10 @@ function saveTrackData()
             f:close()
         end
     end
-
+    applyReverbChanges()
     reaper.defer(saveTrackData)
 end
+
+
 
 saveTrackData()
