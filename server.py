@@ -84,13 +84,6 @@ def set_pan():
     osc_client.send_message(f"/track/{data['track']}/pan", data['pan'])
     return {"message": "Pan changé"}
 
-@app.route("/set_reverb", methods=["POST"])
-def set_reverb():
-    if "user" not in session:
-        return {"error": "Unauthorized"}, 403
-    data = request.json
-    osc_client.send_message(f"/track/{data['track']}/fx/reverb", data['reverb'])
-    return {"message": "Reverb changée"}
 
 @app.route("/toggle_record_arm", methods=["POST"])
 def toggle_record_arm():
@@ -224,6 +217,29 @@ def set_instrument():
         return {"error": str(e)}, 500
 
     return {"message": f"Instrument de la piste {track} défini à {instrument}"}
+
+@app.route("/set_reverb", methods=["POST"])
+def set_reverb():
+    if "user" not in session:
+        return {"error": "Unauthorized"}, 403
+    data = request.get_json()
+    track  = str(data["track"])
+    active = bool(data["active"])
+    wet    = float(data["wet"])
+    dry    = float(data["dry"])
+
+    # Stockage local pour que Lua lise
+    reverb_file = os.path.join(os.getenv("APPDATA"), "REAPER", "reverb_changes.json")
+    if os.path.exists(reverb_file):
+        with open(reverb_file, "r") as f:
+            changes = json.load(f)
+    else:
+        changes = {}
+    changes[track] = {"active": active, "wet": wet, "dry": dry}
+    with open(reverb_file, "w") as f:
+        json.dump(changes, f)
+
+    return {"message": f"Réverbération piste {track} mise à jour"}
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -167,6 +167,32 @@
       apiRequest("/set_instrument", "POST", { track, instrument });
     }
 
+function toggleReverb(track) {
+  const btn   = document.getElementById(`reverb-btn-${track}`);
+  const ctrls = document.getElementById(`reverb-controls-${track}`);
+  const active = ctrls.style.display === 'none';
+  ctrls.style.display = active ? 'block' : 'none';
+  btn.textContent    = active ? 'Désactiver Réverbère' : 'Activer Réverbère';
+  const wet = parseFloat(document.getElementById(`wet-${track}`).value);
+  const dry = parseFloat(document.getElementById(`dry-${track}`).value);
+  apiRequest("/set_reverb","POST",{ track, active, wet, dry });
+}
+
+function updateWetValue(track, value) {
+  document.getElementById(`wet-value-${track}`).textContent = value;
+  const active = document.getElementById(`reverb-controls-${track}`).style.display==='block';
+  const dry    = parseFloat(document.getElementById(`dry-${track}`).value);
+  apiRequest("/set_reverb","POST",{ track, active, wet:parseFloat(value), dry });
+}
+
+function updateDryValue(track, value) {
+  document.getElementById(`dry-value-${track}`).textContent = value;
+  const active = document.getElementById(`reverb-controls-${track}`).style.display==='block';
+  const wet    = parseFloat(document.getElementById(`wet-${track}`).value);
+  apiRequest("/set_reverb","POST",{ track, active, wet, dry:parseFloat(value) });
+}
+
+
     function updateTrackCards() {
       apiRequest("/track_data")
         .then(data => {
@@ -219,6 +245,19 @@
 
                 <label><i class="fas fa-water icon"></i> Réverbération</label>
                 <input id="reverb-${track.id}" type="range" min="0" max="1" step="0.01" value="0.5" oninput="sendReverb(${track.id}, this.value)">
+
+                <label>Réverb</label>
+                <button id="reverb-btn-${track.id}" onclick="toggleReverb(${track.id})">Activer Réverbère</button>
+                <div id="reverb-controls-${track.id}" style="display:none; margin: 8px 0;">
+                <label>Wet : <span id="wet-value-${track.id}">0.5</span></label>
+                <input type="range" id="wet-${track.id}" min="0" max="1" step="0.01" value="0.5"
+                oninput="updateWetValue(${track.id}, this.value)" />
+                <br/>
+                <label>Dry : <span id="dry-value-${track.id}">0.5</span></label>
+                <input type="range" id="dry-${track.id}" min="0" max="1" step="0.01" value="0.5"
+                oninput="updateDryValue(${track.id}, this.value)" />
+                </div>
+
 
                 <label><i class="fas fa-circle icon"></i> Enregistrement activé</label>
                 <input type="checkbox" id="record-${track.id}" ${track.record ? 'checked' : ''} onchange="toggleRecordArm(${track.id}, this.checked)">
