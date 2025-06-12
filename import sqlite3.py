@@ -15,8 +15,8 @@ CREATE TABLE users (
 ''')
 
 # Ajout d'un utilisateur "admin" avec mot de passe "admin123"
-username = "nizar"
-password = "nizar123"
+username = ""
+password = ""
 hashed_password = generate_password_hash(password)
 
 cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
