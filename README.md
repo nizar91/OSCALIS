@@ -1,6 +1,6 @@
-# TouchBeat2
+# OSCALIS
 
-TouchBeat2 est une application web légère construite avec Flask qui permet de contrôler le DAW Reaper via OSC (Open Sound Control) et de gérer l'accès utilisateur via une base de données SQLite.
+OSCALIS est une application web légère construite avec Flask qui permet de contrôler le DAW Reaper via OSC (Open Sound Control) et de gérer l'accès utilisateur via une base de données SQLite.
 
 ## Fonctionnalités
 
